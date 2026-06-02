@@ -1,0 +1,24 @@
+{
+  "name": "be-flesh-sale",
+  "version": "1.0.0",
+  "description": "A highly scalable flash sale platform designed to handle massive traffic spikes, maintain inventory consistency, and prevent overselling during high-demand product launches.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.21.0",
+    "redis": "^6.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
