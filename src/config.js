@@ -1,6 +1,8 @@
 const dotenv = require("dotenv");
 
-dotenv.config();
+if (process.env.NODE_ENV !== "test") {
+  dotenv.config();
+}
 
 module.exports = {
   port: process.env.PORT || 3000,

@@ -278,6 +278,89 @@ to deliver a resilient, scalable, and production-ready flash sale system.
 
 ## Quick Start (This Implementation)
 
+### Testing
+
+Integration tests cover all API endpoints using **Jest** and **Supertest**. They run against real PostgreSQL and Redis (not mocks).
+
+#### Test dependencies
+
+Installed as dev dependencies (included after `npm install`):
+
+| Package     | Version | Purpose                                      |
+| ----------- | ------- | -------------------------------------------- |
+| `jest`      | ^30.x   | Test runner                                  |
+| `supertest` | ^7.x    | HTTP assertions against the Express app        |
+
+Install manually if needed:
+
+```bash
+npm install --save-dev jest supertest
+```
+
+#### Prerequisites
+
+- **Node.js** 20+
+- **PostgreSQL** and **Redis** running locally (Docker Compose is recommended)
+
+Tests connect to:
+
+| Service    | URL (test default)                                              |
+| ---------- | --------------------------------------------------------------- |
+| PostgreSQL | `postgres://postgres:postgres@127.0.0.1:5433/flash_sale_db`     |
+| Redis      | `redis://127.0.0.1:6379`                                        |
+
+Postgres uses port **5433** on the host (mapped in `docker-compose.yml`) so tests do not conflict with a local PostgreSQL instance that may already use port 5432.
+
+#### Run tests
+
+1. Start database and cache:
+
+```bash
+docker compose up -d postgres redis
+```
+
+2. Install dependencies (first time only):
+
+```bash
+npm install
+```
+
+3. Run the test suite:
+
+```bash
+npm test
+```
+
+Equivalent script: `jest --runInBand --forceExit` (serial execution, clean exit after shared DB/Redis connections).
+
+#### Test layout
+
+| File                 | Role                                                                 |
+| -------------------- | -------------------------------------------------------------------- |
+| `tests/env.js`       | Sets `NODE_ENV=test` and test DB/Redis URLs (loaded before tests)    |
+| `tests/setup.js`     | Applies schema, connects Redis, truncates tables between tests       |
+| `tests/api.test.js`  | Integration tests for every endpoint (33 cases)                      |
+| `jest.config.js`     | Jest configuration                                                   |
+| `src/app.js`         | Express app export used by Supertest (no HTTP server listen)         |
+
+#### What is tested
+
+- `GET /health`
+- `POST /users`, `POST /users/login`, `POST /users/refresh`
+- `GET /products`, `POST /products` (including `price`)
+- `GET /flash-sale-products` (all, `?active=true`, `?upcoming=true`)
+- `GET /flash-sale-products/:id`
+- `POST /flash-sale-products`, `PATCH /flash-sale-products/:id`
+- `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id`
+
+Auth, validation, stock allocation, and Redis cache behavior are included where applicable.
+
+#### Troubleshooting
+
+- **`role "postgres" does not exist`** — Another PostgreSQL is bound to port 5432. Use Docker Postgres on **5433** (`docker compose up -d postgres`) and run `npm test` again.
+- **Redis / Postgres connection refused** — Ensure `docker compose up -d postgres redis` is running.
+- **Stale schema** — Recreate volumes if columns are missing: `docker compose down -v && docker compose up -d postgres redis`
+
 ### Run with Docker
 
 ```bash
