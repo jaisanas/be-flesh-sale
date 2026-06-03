@@ -21,18 +21,24 @@ router.get("/", staticTokenAuth, async (_req, res) => {
 });
 
 router.post("/", staticTokenAuth, async (req, res) => {
-  const { name, stock } = req.body;
+  const { name, stock, price } = req.body;
 
-  if (!name || typeof stock !== "number") {
-    return res.status(400).json({ message: "name and numeric stock are required" });
+  if (!name || typeof stock !== "number" || typeof price !== "number") {
+    return res.status(400).json({
+      message: "name, numeric stock, and numeric price are required",
+    });
+  }
+
+  if (stock < 0 || price < 0) {
+    return res.status(400).json({ message: "stock and price must be non-negative" });
   }
 
   try {
     const result = await db.query(
-      `INSERT INTO products (name, stock)
-       VALUES ($1, $2)
+      `INSERT INTO products (name, stock, price)
+       VALUES ($1, $2, $3)
        RETURNING id, name, stock, price, created_at, updated_at`,
-      [name, stock]
+      [name, stock, price]
     );
 
     const product = result.rows[0];

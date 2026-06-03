@@ -4,6 +4,7 @@ const staticTokenAuth = require("../middleware/staticTokenAuth");
 const {
   setFlashSaleStock,
   getFlashSaleStock,
+  setProductStock,
 } = require("../services/stockCache");
 
 const router = express.Router();
@@ -13,6 +14,26 @@ function isActiveFlashSale(row) {
   return new Date(row.start_date) <= now && now <= new Date(row.end_date);
 }
 
+function isUpcomingFlashSale(row) {
+  return new Date(row.start_date) > new Date();
+}
+
+function resolveListFilter(req) {
+  const { status, active, upcoming } = req.query;
+
+  if (status === "upcoming" || upcoming === "true") {
+    return "upcoming";
+  }
+  if (status === "active" || active === "true") {
+    return "active";
+  }
+  if (status === "ended") {
+    return "ended";
+  }
+
+  return "all";
+}
+
 async function attachCachedStock(rows) {
   return Promise.all(
     rows.map(async (row) => {
@@ -20,37 +41,40 @@ async function attachCachedStock(rows) {
       return {
         ...row,
         cached_stock: cachedStock ?? row.stock,
+        is_active: isActiveFlashSale(row),
+        is_upcoming: isUpcomingFlashSale(row),
       };
     })
   );
 }
 
 router.get("/", async (req, res) => {
-  const activeOnly = req.query.active !== "false";
+  const filter = resolveListFilter(req);
+
+  const baseSelect = `
+    SELECT fsp.id, fsp.product_id, p.name AS product_name,
+           fsp.stock, fsp.price, fsp.start_date, fsp.end_date,
+           fsp.created_at, fsp.updated_at
+    FROM flash_sale_products fsp
+    JOIN products p ON p.id = fsp.product_id
+  `;
+
+  const queries = {
+    active: `${baseSelect}
+      WHERE fsp.start_date <= NOW() AND fsp.end_date >= NOW()
+      ORDER BY fsp.start_date ASC`,
+    upcoming: `${baseSelect}
+      WHERE fsp.start_date > NOW()
+      ORDER BY fsp.start_date ASC`,
+    ended: `${baseSelect}
+      WHERE fsp.end_date < NOW()
+      ORDER BY fsp.end_date DESC`,
+    all: `${baseSelect}
+      ORDER BY fsp.start_date ASC`,
+  };
 
   try {
-    let result;
-
-    if (activeOnly) {
-      result = await db.query(
-        `SELECT fsp.id, fsp.product_id, p.name AS product_name,
-                fsp.stock, fsp.price, fsp.start_date, fsp.end_date,
-                fsp.created_at, fsp.updated_at
-         FROM flash_sale_products fsp
-         JOIN products p ON p.id = fsp.product_id
-         WHERE fsp.start_date <= NOW() AND fsp.end_date >= NOW()
-         ORDER BY fsp.id ASC`
-      );
-    } else {
-      result = await db.query(
-        `SELECT fsp.id, fsp.product_id, p.name AS product_name,
-                fsp.stock, fsp.price, fsp.start_date, fsp.end_date,
-                fsp.created_at, fsp.updated_at
-         FROM flash_sale_products fsp
-         JOIN products p ON p.id = fsp.product_id
-         ORDER BY fsp.id ASC`
-      );
-    }
+    const result = await db.query(queries[filter]);
 
     const rows = await attachCachedStock(result.rows);
     return res.status(200).json(rows);
@@ -85,6 +109,7 @@ router.get("/:id", async (req, res) => {
       ...row,
       cached_stock: cachedStock ?? row.stock,
       is_active: isActiveFlashSale(row),
+      is_upcoming: isUpcomingFlashSale(row),
     });
   } catch (error) {
     console.error("Failed to get flash sale product:", error);
@@ -111,29 +136,60 @@ router.post("/", staticTokenAuth, async (req, res) => {
     return res.status(400).json({ message: "end_date must be after start_date" });
   }
 
-  try {
-    const productCheck = await db.query("SELECT id FROM products WHERE id = $1", [
-      product_id,
-    ]);
+  if (stock < 0) {
+    return res.status(400).json({ message: "stock must be non-negative" });
+  }
 
-    if (productCheck.rows.length === 0) {
+  const client = await db.pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const productResult = await client.query(
+      `SELECT id, stock FROM products WHERE id = $1 FOR UPDATE`,
+      [product_id]
+    );
+
+    if (productResult.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "product not found" });
     }
 
-    const result = await db.query(
+    const product = productResult.rows[0];
+
+    if (product.stock < stock) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ message: "insufficient product stock" });
+    }
+
+    const updatedProduct = await client.query(
+      `UPDATE products
+       SET stock = stock - $1
+       WHERE id = $2
+       RETURNING stock`,
+      [stock, product_id]
+    );
+
+    const result = await client.query(
       `INSERT INTO flash_sale_products (product_id, stock, price, start_date, end_date)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, product_id, stock, price, start_date, end_date, created_at, updated_at`,
       [product_id, stock, price, start_date, end_date]
     );
 
+    await client.query("COMMIT");
+
     const flashSale = result.rows[0];
     await setFlashSaleStock(flashSale.id, flashSale.stock);
+    await setProductStock(product_id, updatedProduct.rows[0].stock);
 
     return res.status(201).json(flashSale);
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Failed to create flash sale product:", error);
     return res.status(500).json({ message: "internal server error" });
+  } finally {
+    client.release();
   }
 });
 

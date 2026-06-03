@@ -304,11 +304,15 @@ The API will run at `http://localhost:3000`.
   - body: `{ "refreshToken": "<token>" }`
 - `GET /products` (static token required)
 - `POST /products` (static token required)
-  - body: `{ "name": "Laptop", "stock": 10 }`
-- `GET /flash-sale-products` (public, active sales by default)
+  - body: `{ "name": "Laptop", "stock": 10, "price": 500 }`
+- `GET /flash-sale-products` (public, returns all by default)
+  - `?upcoming=true` or `?status=upcoming` — sales not started yet (`start_date > now`)
+  - `?active=true` or `?status=active` — sales in progress
+  - `?status=ended` — sales past `end_date`
 - `GET /flash-sale-products/:id` (public, includes `cached_stock` from Redis)
 - `POST /flash-sale-products` (static token required)
   - body: `{ "product_id": 1, "stock": 100, "price": 9.99, "start_date": "...", "end_date": "..." }`
+  - allocates flash sale stock from the linked product (`products.stock` is reduced by the same amount)
 - `PATCH /flash-sale-products/:id` (static token required)
 - `POST /orders` (JWT access token required)
   - body: `{ "productId": 1 }` or `{ "flashSaleProductId": 1 }`
@@ -391,7 +395,7 @@ return current - 1   -- new remaining stock after reserve
 | Event | Endpoint / code | Redis action |
 | ----- | ----------------- | ------------ |
 | Product created | `POST /products` | `setProductStock(product.id, product.stock)` |
-| Flash sale created | `POST /flash-sale-products` | `setFlashSaleStock(flashSale.id, flashSale.stock)` |
+| Flash sale created | `POST /flash-sale-products` | Decrements `products.stock` by flash sale `stock`; `setFlashSaleStock` + `setProductStock` |
 | Flash sale stock updated | `PATCH /flash-sale-products/:id` (when `stock` in body) | `setFlashSaleStock(id, updated.stock)` |
 | Order placed (success) | `POST /orders` | After DB commit: `set*(id, dbStock - 1)` to align cache with PostgreSQL |
 | Order cancelled | `PATCH /orders/:id` with `status: "cancelled"` | DB `stock + 1`, then `release*` + `set*` to match DB |
