@@ -1,12 +1,30 @@
 const express = require("express");
+const cors = require("cors");
 const db = require("./db");
 const redisClient = require("./redis");
+const { corsOrigin } = require("./config");
 const usersRouter = require("./routes/users");
 const productsRouter = require("./routes/products");
 const flashSaleProductsRouter = require("./routes/flashSaleProducts");
 const ordersRouter = require("./routes/orders");
 
 const app = express();
+
+const allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim());
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 app.use(express.json());
 

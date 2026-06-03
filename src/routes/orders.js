@@ -207,9 +207,13 @@ router.get("/", jwtAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT o.id, o.user_id, o.product_id, o.flash_sale_product_id,
-              p.name AS product_name, o.status, o.created_at, o.updated_at
+              p.name AS product_name, p.price AS product_price,
+              fsp.price AS flash_sale_price,
+              COALESCE(fsp.price, p.price) AS price,
+              o.status, o.created_at, o.updated_at
        FROM orders o
        JOIN products p ON p.id = o.product_id
+       LEFT JOIN flash_sale_products fsp ON fsp.id = o.flash_sale_product_id
        WHERE o.user_id = $1
        ORDER BY o.id DESC`,
       [req.userId]
@@ -228,9 +232,13 @@ router.get("/:id", jwtAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT o.id, o.user_id, o.product_id, o.flash_sale_product_id,
-              p.name AS product_name, o.status, o.created_at, o.updated_at
+              p.name AS product_name, p.price AS product_price,
+              fsp.price AS flash_sale_price,
+              COALESCE(fsp.price, p.price) AS price,
+              o.status, o.created_at, o.updated_at
        FROM orders o
        JOIN products p ON p.id = o.product_id
+       LEFT JOIN flash_sale_products fsp ON fsp.id = o.flash_sale_product_id
        WHERE o.id = $1 AND o.user_id = $2`,
       [id, req.userId]
     );

@@ -369,6 +369,62 @@ docker compose up --build
 
 The API will run at `http://localhost:3000`.
 
+### Postman collection
+
+A Postman collection is included at the project root for quick manual testing:
+
+```
+Flash Sale.postman_collection.json
+```
+
+#### Import
+
+1. Open Postman.
+2. Click **Import** (top left).
+3. Select the file `Flash Sale.postman_collection.json` from this repository.
+4. The **Flash Sale** collection appears in the sidebar.
+
+#### Included requests
+
+- `Create New User` — `POST /users`
+- `Login` — `POST /users/login`
+- `Refresh Token` — `POST /users/refresh`
+- `Create Product` — `POST /products`
+- `List Products` — `GET /products`
+- `Create Flash Sale Product` — `POST /flash-sale-products`
+- `List Flash Sale Products` — `GET /flash-sale-products` (with `?active=true` / `?upcoming=true` variants)
+- `Get Flash Sale Product` — `GET /flash-sale-products/:id`
+- `Update Flash Sale Product` — `PATCH /flash-sale-products/:id`
+- `Create Order` — `POST /orders`
+- `List Orders` — `GET /orders`
+- `Get Order` — `GET /orders/:id`
+- `Update Order Status` — `PATCH /orders/:id`
+
+#### Auth tokens used in the collection
+
+The requests target `http://localhost:3000` and use:
+
+- Static token header: `Authorization: Bearer static-dev-token` (matches `STATIC_API_TOKEN` in `.env`)
+- JWT bearer token from the **Login** response — copy `accessToken` into the `Authorization` header for `/orders` requests.
+
+If you change `STATIC_API_TOKEN` or `JWT_SECRET` in your `.env`, update the headers in the collection accordingly.
+
+### CORS (frontend clients)
+
+The API allows browser requests from origins listed in `CORS_ORIGIN` (default: `http://localhost:5173` for Vite).
+
+```env
+CORS_ORIGIN=http://localhost:5173
+```
+
+Multiple origins (comma-separated):
+
+```env
+CORS_ORIGIN=http://localhost:5173,http://localhost:3001
+```
+
+Restart the API after changing this value.
+
 ### Auth
 
 - Static token header for protected endpoints:
