@@ -286,10 +286,10 @@ Integration tests cover all API endpoints using **Jest** and **Supertest**. They
 
 Installed as dev dependencies (included after `npm install`):
 
-| Package     | Version | Purpose                                      |
-| ----------- | ------- | -------------------------------------------- |
-| `jest`      | ^30.x   | Test runner                                  |
-| `supertest` | ^7.x    | HTTP assertions against the Express app        |
+| Package     | Version | Purpose                                 |
+| ----------- | ------- | --------------------------------------- |
+| `jest`      | ^30.x   | Test runner                             |
+| `supertest` | ^7.x    | HTTP assertions against the Express app |
 
 Install manually if needed:
 
@@ -304,10 +304,10 @@ npm install --save-dev jest supertest
 
 Tests connect to:
 
-| Service    | URL (test default)                                              |
-| ---------- | --------------------------------------------------------------- |
-| PostgreSQL | `postgres://postgres:postgres@127.0.0.1:5433/flash_sale_db`     |
-| Redis      | `redis://127.0.0.1:6379`                                        |
+| Service    | URL (test default)                                          |
+| ---------- | ----------------------------------------------------------- |
+| PostgreSQL | `postgres://postgres:postgres@127.0.0.1:5433/flash_sale_db` |
+| Redis      | `redis://127.0.0.1:6379`                                    |
 
 Postgres uses port **5433** on the host (mapped in `docker-compose.yml`) so tests do not conflict with a local PostgreSQL instance that may already use port 5432.
 
@@ -335,13 +335,13 @@ Equivalent script: `jest --runInBand --forceExit` (serial execution, clean exit 
 
 #### Test layout
 
-| File                 | Role                                                                 |
-| -------------------- | -------------------------------------------------------------------- |
-| `tests/env.js`       | Sets `NODE_ENV=test` and test DB/Redis URLs (loaded before tests)    |
-| `tests/setup.js`     | Applies schema, connects Redis, truncates tables between tests       |
-| `tests/api.test.js`  | Integration tests for every endpoint (33 cases)                      |
-| `jest.config.js`     | Jest configuration                                                   |
-| `src/app.js`         | Express app export used by Supertest (no HTTP server listen)         |
+| File                | Role                                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| `tests/env.js`      | Sets `NODE_ENV=test` and test DB/Redis URLs (loaded before tests) |
+| `tests/setup.js`    | Applies schema, connects Redis, truncates tables between tests    |
+| `tests/api.test.js` | Integration tests for every endpoint (33 cases)                   |
+| `jest.config.js`    | Jest configuration                                                |
+| `src/app.js`        | Express app export used by Supertest (no HTTP server listen)      |
 
 #### What is tested
 
@@ -476,9 +476,9 @@ Implementation lives in:
 
 ### Configuration
 
-| Variable     | Example                         | Purpose                          |
-| ------------ | ------------------------------- | -------------------------------- |
-| `REDIS_URL`  | `redis://redis:6379` (Docker)   | Connection URL for the Redis client |
+| Variable    | Example                       | Purpose                             |
+| ----------- | ----------------------------- | ----------------------------------- |
+| `REDIS_URL` | `redis://redis:6379` (Docker) | Connection URL for the Redis client |
 
 In Docker Compose, the `app` service connects to the `redis` service on the internal network. The `/health` endpoint runs `PING` against Redis to confirm connectivity.
 
@@ -486,25 +486,25 @@ In Docker Compose, the `app` service connects to the `redis` service on the inte
 
 Two separate key namespaces are used so regular product stock and flash sale stock never collide:
 
-| Key pattern                    | Example                 | Value        | Used for                          |
-| ------------------------------ | ----------------------- | ------------ | --------------------------------- |
-| `product:stock:{productId}`    | `product:stock:1`       | integer string | Regular `POST /orders` with `productId` |
+| Key pattern                             | Example              | Value          | Used for                                            |
+| --------------------------------------- | -------------------- | -------------- | --------------------------------------------------- |
+| `product:stock:{productId}`             | `product:stock:1`    | integer string | Regular `POST /orders` with `productId`             |
 | `flash_sale:stock:{flashSaleProductId}` | `flash_sale:stock:3` | integer string | Flash sale `POST /orders` with `flashSaleProductId` |
 
 Keys store the **remaining available quantity** as a plain string (e.g. `"42"`). There is no TTL on these keys in the current implementation; they are updated explicitly when stock changes.
 
 ### Stock cache API (`src/services/stockCache.js`)
 
-| Function                    | Redis operation              | Description |
-| --------------------------- | ---------------------------- | ----------- |
-| `setProductStock(id, n)`    | `SET product:stock:{id} n`   | Write/replace cached stock for a product |
-| `setFlashSaleStock(id, n)`  | `SET flash_sale:stock:{id} n`| Write/replace cached stock for a flash sale item |
-| `getProductStock(id)`       | `GET`                        | Read cached stock; returns `null` if key missing |
-| `getFlashSaleStock(id)`     | `GET`                        | Read cached stock; returns `null` if key missing |
-| `reserveProductStock(id)`   | Lua script (see below)       | Atomically decrement by 1 if stock is available |
-| `reserveFlashSaleStock(id)` | Lua script (see below)       | Atomically decrement by 1 if stock is available |
-| `releaseProductStock(id)`   | `INCRBY` (+1)                | Roll back one unit after a failed DB step |
-| `releaseFlashSaleStock(id)` | `INCRBY` (+1)                | Roll back one unit after a failed DB step |
+| Function                    | Redis operation               | Description                                      |
+| --------------------------- | ----------------------------- | ------------------------------------------------ |
+| `setProductStock(id, n)`    | `SET product:stock:{id} n`    | Write/replace cached stock for a product         |
+| `setFlashSaleStock(id, n)`  | `SET flash_sale:stock:{id} n` | Write/replace cached stock for a flash sale item |
+| `getProductStock(id)`       | `GET`                         | Read cached stock; returns `null` if key missing |
+| `getFlashSaleStock(id)`     | `GET`                         | Read cached stock; returns `null` if key missing |
+| `reserveProductStock(id)`   | Lua script (see below)        | Atomically decrement by 1 if stock is available  |
+| `reserveFlashSaleStock(id)` | Lua script (see below)        | Atomically decrement by 1 if stock is available  |
+| `releaseProductStock(id)`   | `INCRBY` (+1)                 | Roll back one unit after a failed DB step        |
+| `releaseFlashSaleStock(id)` | `INCRBY` (+1)                 | Roll back one unit after a failed DB step        |
 
 ### Atomic reserve (Lua script)
 
@@ -523,23 +523,23 @@ redis.call('DECR', KEYS[1])
 return current - 1   -- new remaining stock after reserve
 ```
 
-| Return value | Meaning | Application behavior |
-| ------------ | ------- | -------------------- |
-| `>= 0`       | Reserved successfully; value is remaining stock after decrement | Continue to PostgreSQL transaction |
-| `-1`         | Out of stock in Redis | Respond `409` with `{ "message": "out of stock" }` |
-| `-2`         | Key missing (cache not warmed) | Load `stock` from PostgreSQL, `SET` the key, retry reserve once |
+| Return value | Meaning                                                         | Application behavior                                            |
+| ------------ | --------------------------------------------------------------- | --------------------------------------------------------------- |
+| `>= 0`       | Reserved successfully; value is remaining stock after decrement | Continue to PostgreSQL transaction                              |
+| `-1`         | Out of stock in Redis                                           | Respond `409` with `{ "message": "out of stock" }`              |
+| `-2`         | Key missing (cache not warmed)                                  | Load `stock` from PostgreSQL, `SET` the key, retry reserve once |
 
 ### When Redis keys are created or updated
 
-| Event | Endpoint / code | Redis action |
-| ----- | ----------------- | ------------ |
-| Product created | `POST /products` | `setProductStock(product.id, product.stock)` |
-| Flash sale created | `POST /flash-sale-products` | Decrements `products.stock` by flash sale `stock`; `setFlashSaleStock` + `setProductStock` |
-| Flash sale stock updated | `PATCH /flash-sale-products/:id` (when `stock` in body) | `setFlashSaleStock(id, updated.stock)` |
-| Order placed (success) | `POST /orders` | After DB commit: `set*(id, dbStock - 1)` to align cache with PostgreSQL |
-| Order cancelled | `PATCH /orders/:id` with `status: "cancelled"` | DB `stock + 1`, then `release*` + `set*` to match DB |
-| Order failed after Redis reserve | `POST /orders` catch block | `releaseProductStock` or `releaseFlashSaleStock` |
-| DB out of stock after Redis reserve | `POST /orders` (rollback path) | `ROLLBACK` + `release*` |
+| Event                               | Endpoint / code                                         | Redis action                                                                               |
+| ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Product created                     | `POST /products`                                        | `setProductStock(product.id, product.stock)`                                               |
+| Flash sale created                  | `POST /flash-sale-products`                             | Decrements `products.stock` by flash sale `stock`; `setFlashSaleStock` + `setProductStock` |
+| Flash sale stock updated            | `PATCH /flash-sale-products/:id` (when `stock` in body) | `setFlashSaleStock(id, updated.stock)`                                                     |
+| Order placed (success)              | `POST /orders`                                          | After DB commit: `set*(id, dbStock - 1)` to align cache with PostgreSQL                    |
+| Order cancelled                     | `PATCH /orders/:id` with `status: "cancelled"`          | DB `stock + 1`, then `release*` + `set*` to match DB                                       |
+| Order failed after Redis reserve    | `POST /orders` catch block                              | `releaseProductStock` or `releaseFlashSaleStock`                                           |
+| DB out of stock after Redis reserve | `POST /orders` (rollback path)                          | `ROLLBACK` + `release*`                                                                    |
 
 `GET /products` does **not** read from Redis today; only write path and order flow use the product stock cache.
 
@@ -611,10 +611,10 @@ Marking an order as `paid` does **not** change stock (inventory was already dedu
 
 ### Consistency model
 
-| Layer | Role |
-| ----- | ---- |
+| Layer          | Role                                                                                                           |
+| -------------- | -------------------------------------------------------------------------------------------------------------- |
 | **PostgreSQL** | Authoritative inventory and orders; row-level locks (`FOR UPDATE`) prevent double-selling inside a transaction |
-| **Redis** | Optimistic fast path; rejects most oversell attempts before DB work |
+| **Redis**      | Optimistic fast path; rejects most oversell attempts before DB work                                            |
 
 Important behaviors:
 
@@ -640,3 +640,13 @@ Important behaviors:
   ```
 
 - **Health check**: `GET /health` returns `{ "status": "ok" }` only if both PostgreSQL (`SELECT 1`) and Redis (`PING`) succeed.
+
+## Additional Resources
+
+For detailed instructions on setting up and running the frontend client, please refer to the frontend repository:
+
+- Frontend Repository: https://github.com/jaisanas/fe-flesh-sale
+
+To better understand the overall system architecture and how the frontend and backend services communicate with each other, you can watch the walkthrough video below:
+
+- System Walkthrough Video: https://drive.google.com/file/d/1h_hg97l9VC9MPoN9snwHo61K_NWf_OGv/view?usp=sharing
